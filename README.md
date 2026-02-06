@@ -22,6 +22,8 @@ Start with using `soql` tags on members of your golang structs. `soql` is the ma
     selectChild // is the tag to be used when selecting from child tables. It should be used on members of struct that have been tagged with selectClause.
     likeOperator // is the tag to be used for "like" operator in where clause. It should be used on members of struct that have been tagged with whereClause.
     notLikeOperator // is the tag to be used for "not like" operator in where clause. It should be used on members of struct that have been tagged with whereClause.
+    startsWithOperator // is the tag to be used for "starts with" like operator in where clause. It should be used on members of struct that have been tagged with whereClause.
+    endsWithOperator // is the tag to be used for "ends with" like operator in where clause. It should be used on members of struct that have been tagged with whereClause.
     inOperator // is the tag to be used for "in" operator in where clause. It should be used on members of struct that have been tagged with whereClause.
     notInOperator // is the tag to be used for "not in" operator in where clause. It should be used on members of struct that have been tagged with whereClause.
     equalsOperator // is the tag to be used for "=" operator in where clause. It should be used on members of struct that have been tagged with whereClause.
@@ -403,6 +405,24 @@ type sub struct {
        ExcludeNamePattern: []string{"-far", "-baz"},
    })
    // whereClause will be: WHERE ((NOT Name__c LIKE '%-far%') AND (NOT Name__c LIKE '%-baz%'))
+   ```
+
+1. `startsWithOperator`: This tag is used on members which should be considered to construct field expressions in where clause using `LIKE` comparison operator for matching values that start with a prefix. This tag should be used on member of type `[]string`. Used on any other type, `ErrInvalidTag` error will be returned. If there are more than one item in the slice then they will be combined using `OR` logical operator. Example will clarify this more:
+
+   ```
+   whereClause, _ := MarshalWhereClause(QueryCriteria{
+       StartsWithPattern: []string{"foo", "bar"},
+   })
+   // whereClause will be: WHERE (Name__c LIKE 'foo%' OR Name__c LIKE 'bar%')
+   ```
+
+1. `endsWithOperator`: This tag is used on members which should be considered to construct field expressions in where clause using `LIKE` comparison operator for matching values that end with a suffix. This tag should be used on member of type `[]string`. Used on any other type, `ErrInvalidTag` error will be returned. If there are more than one item in the slice then they will be combined using `OR` logical operator. Example will clarify this more:
+
+   ```
+   whereClause, _ := MarshalWhereClause(QueryCriteria{
+       EndsWithPattern: []string{"foor", "bar"},
+   })
+   // whereClause will be: WHERE (Name__c LIKE '%foo' OR Name__c LIKE '%bar')
    ```
 
 1. `inOperator`: This tag is used on members which should be considered to construct field expressions in where clause using `IN` comparison operator. This tag should be used on member of type `[]string`, `[]int`, `[]int8`, `[]int16`, `[]int32`, `[]int64`, `[]uint`, `[]uint8`, `[]uint16`, `[]uint32`, `[]uint64`, `[]float32`, `[]float64`, `[]bool` or `[]time.Time`. Used on any other type, `ErrInvalidTag` error will be returned. Example will clarify this more:
