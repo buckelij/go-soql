@@ -44,6 +44,10 @@ const (
 	notOperator                     = "NOT "
 	openLike                        = " LIKE '%"
 	closeLike                       = "%'"
+	openStartsWith                  = " LIKE '"
+	closeStartsWith                 = "%'"
+	openEndsWith                    = " LIKE '%"
+	closeEndsWith                   = "'"
 	inOperator                      = " IN "
 	notInOperator                   = " NOT IN "
 	equalsOperator                  = " = "
@@ -105,6 +109,10 @@ const (
 	LikeOperator = "likeOperator"
 	// NotLikeOperator is the tag to be used for "not like" operator in where clause
 	NotLikeOperator = "notLikeOperator"
+	// StartsWithOperator is the tag to be used for "starts with" like operator in where clause
+	StartsWithOperator = "startsWithOperator"
+	// EndsWithOperator is the tag to be used for "ends with" like operator in where clause
+	EndsWithOperator = "endsWithOperator"
 	// InOperator is the tag to be used for "in" operator in where clause
 	InOperator = "inOperator"
 	// NotInOperator is the tag to be used for "not in" operator in where clause
@@ -151,6 +159,8 @@ const (
 var clauseBuilderMap = map[string]func(v interface{}, fieldName string, tags map[string]string) (string, error){
 	LikeOperator:                    buildLikeClause,
 	NotLikeOperator:                 buildNotLikeClause,
+	StartsWithOperator:              buildStartsWithClause,
+	EndsWithOperator:                buildEndsWithClause,
 	InOperator:                      buildInClause,
 	NotInOperator:                   buildNotInClause,
 	EqualsOperator:                  buildEqualsClause,
@@ -253,6 +263,14 @@ func buildNotLikeClause(v interface{}, fieldName string, tags map[string]string)
 	return constructLikeClause(v, fieldName, true)
 }
 
+func buildStartsWithClause(v interface{}, fieldName string, tags map[string]string) (string, error) {
+	return constructStartsWithClause(v, fieldName, false)
+}
+
+func buildEndsWithClause(v interface{}, fieldName string, tags map[string]string) (string, error) {
+	return constructEndsWithClause(v, fieldName, false)
+}
+
 func constructLikeClause(v interface{}, fieldName string, exclude bool) (string, error) {
 	var buff strings.Builder
 	patterns, ok := v.([]string)
@@ -278,6 +296,76 @@ func constructLikeClause(v interface{}, fieldName string, exclude bool) (string,
 		buff.WriteString(openLike)
 		buff.WriteString(sanitizeLikeReplacer.Replace(pattern))
 		buff.WriteString(closeLike)
+		if exclude {
+			buff.WriteString(closeBrace)
+		}
+	}
+	if len(patterns) > 1 {
+		buff.WriteString(closeBrace)
+	}
+	return buff.String(), nil
+}
+
+func constructStartsWithClause(v interface{}, fieldName string, exclude bool) (string, error) {
+	var buff strings.Builder
+	patterns, ok := v.([]string)
+	if !ok {
+		return buff.String(), ErrInvalidTag
+	}
+	if len(patterns) > 1 {
+		buff.WriteString(openBrace)
+	}
+	for indx, pattern := range patterns {
+		if indx > 0 {
+			if exclude {
+				buff.WriteString(andCondition)
+			} else {
+				buff.WriteString(orCondition)
+			}
+		}
+		if exclude {
+			buff.WriteString(openBrace)
+			buff.WriteString(notOperator)
+		}
+		buff.WriteString(fieldName)
+		buff.WriteString(openStartsWith)
+		buff.WriteString(sanitizeLikeReplacer.Replace(pattern))
+		buff.WriteString(closeStartsWith)
+		if exclude {
+			buff.WriteString(closeBrace)
+		}
+	}
+	if len(patterns) > 1 {
+		buff.WriteString(closeBrace)
+	}
+	return buff.String(), nil
+}
+
+func constructEndsWithClause(v interface{}, fieldName string, exclude bool) (string, error) {
+	var buff strings.Builder
+	patterns, ok := v.([]string)
+	if !ok {
+		return buff.String(), ErrInvalidTag
+	}
+	if len(patterns) > 1 {
+		buff.WriteString(openBrace)
+	}
+	for indx, pattern := range patterns {
+		if indx > 0 {
+			if exclude {
+				buff.WriteString(andCondition)
+			} else {
+				buff.WriteString(orCondition)
+			}
+		}
+		if exclude {
+			buff.WriteString(openBrace)
+			buff.WriteString(notOperator)
+		}
+		buff.WriteString(fieldName)
+		buff.WriteString(openEndsWith)
+		buff.WriteString(sanitizeLikeReplacer.Replace(pattern))
+		buff.WriteString(closeEndsWith)
 		if exclude {
 			buff.WriteString(closeBrace)
 		}
@@ -763,14 +851,16 @@ func marshalWhereClause(v interface{}, tableName, joiner string) (string, error)
 // Following operators are currently supported:
 // 1. LIKE: Like operator. E.g. Host_Name__c LIKE '%-db%'. Use likeOperator in as soql tag
 // 2. NOT LIKE: Not like operator. E.g. (NOT Host_Name__c LIKE '%-db%'). Use notLikeOperator in soql tag
-// 3. EQUALS (=): Equals operator. E.g. Asset_Type_Asset_Type__c = 'SERVER'. Use equalsOperator in soql tag
-// 4. IN: In operator. E.g. Role__r.Name IN ('db','dbmgmt'). Use inOperator in soql tag
-// 5. NULL ( = null ): Null operator. E.g. Last_Discovered_Date__c = null. Use nullOperator in soql tag
-// 6. NOT NULL: Not null operator. E.g. Last_Discovered_Date__c != null. Use nullOperator in soql tag
-// 7. GREATER THAN: Greater than operator. E.g. Last_Discovered_Date__c > 2006-01-02T15:04:05.000-0700. Use greaterThanOperator in soql tag
-// 8. GREATER THAN OR EQUALS TO: Greater than or equals to operator. E.g. Num_of_CPU_Cores__c >= 16. Use greaterThanOrEqualsToOperator in soql tag
-// 9. LESS THAN: Less than operator. E.g. Last_Discovered_Date__c < 2006-01-02T15:04:05.000-0700. Use lessThanOperator in soql tag
-// 10. LESS THAN OR EQUALS TO: Less than or equals to operator. E.g. Num_of_CPU_Cores__c <= 16. Use lessThanOrEqualsToOperator in soql tag
+// 3. STARTS WITH: Starts with like operator. E.g. Host_Name__c LIKE 'db%'. Use startsWithOperator in soql tag
+// 4. ENDS WITH: Ends with like operator. E.g. Host_Name__c LIKE '%db'. Use endsWithOperator in soql tag
+// 5. EQUALS (=): Equals operator. E.g. Asset_Type_Asset_Type__c = 'SERVER'. Use equalsOperator in soql tag
+// 6. IN: In operator. E.g. Role__r.Name IN ('db','dbmgmt'). Use inOperator in soql tag
+// 7. NULL ( = null ): Null operator. E.g. Last_Discovered_Date__c = null. Use nullOperator in soql tag
+// 8. NOT NULL: Not null operator. E.g. Last_Discovered_Date__c != null. Use nullOperator in soql tag
+// 9. GREATER THAN: Greater than operator. E.g. Last_Discovered_Date__c > 2006-01-02T15:04:05.000-0700. Use greaterThanOperator in soql tag
+// 10. GREATER THAN OR EQUALS TO: Greater than or equals to operator. E.g. Num_of_CPU_Cores__c >= 16. Use greaterThanOrEqualsToOperator in soql tag
+// 11. LESS THAN: Less than operator. E.g. Last_Discovered_Date__c < 2006-01-02T15:04:05.000-0700. Use lessThanOperator in soql tag
+// 12. LESS THAN OR EQUALS TO: Less than or equals to operator. E.g. Num_of_CPU_Cores__c <= 16. Use lessThanOrEqualsToOperator in soql tag
 // Consider following go struct
 // type TestQueryCriteria struct {
 // 	IncludeNamePattern          []string  `soql:"likeOperator,fieldName=Host_Name__c"`

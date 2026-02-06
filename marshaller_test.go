@@ -340,6 +340,49 @@ var _ = Describe("Marshaller", func() {
 				})
 			})
 
+			Context("when startsWithOperator is populated", func() {
+				BeforeEach(func() {
+					critetria = TestQueryCriteria{
+						StartsWithPattern: []string{"-db", "-dbmgmt"},
+					}
+
+					expectedClause = "(Host_Name__c LIKE '-db%' OR Host_Name__c LIKE '-dbmgmt%')"
+				})
+
+				It("returns properly formed clause for startsWithOperator", func() {
+					Expect(clause).To(Equal(expectedClause))
+				})
+			})
+
+			Context("when endsWithOperator is populated", func() {
+				BeforeEach(func() {
+					critetria = TestQueryCriteria{
+						EndsWithPattern: []string{"-db", "-dbmgmt"},
+					}
+
+					expectedClause = "(Host_Name__c LIKE '%-db' OR Host_Name__c LIKE '%-dbmgmt')"
+				})
+
+				It("returns properly formed clause for endsWithOperator", func() {
+					Expect(clause).To(Equal(expectedClause))
+				})
+			})
+
+			Context("when startsWithOperator and endsWithOperator are populated", func() {
+				BeforeEach(func() {
+					critetria = TestQueryCriteria{
+						StartsWithPattern: []string{"-db"},
+						EndsWithPattern:   []string{"-dbmgmt"},
+					}
+
+					expectedClause = "Host_Name__c LIKE '-db%' AND Host_Name__c LIKE '%-dbmgmt'"
+				})
+
+				It("returns properly formed clause for startsWithOperator and endsWithOperator joined by AND clause", func() {
+					Expect(clause).To(Equal(expectedClause))
+				})
+			})
+
 			Context("when all clauses are populated", func() {
 				BeforeEach(func() {
 					allowNull := false

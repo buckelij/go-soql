@@ -35,6 +35,8 @@ type TestQueryCriteria struct {
 	IncludeNamePattern          []string `soql:"likeOperator,fieldName=Host_Name__c"`
 	Roles                       []string `soql:"inOperator,fieldName=Role__r.Name"`
 	ExcludeNamePattern          []string `soql:"notLikeOperator,fieldName=Host_Name__c"`
+	StartsWithPattern           []string `soql:"startsWithOperator,fieldName=Host_Name__c"`
+	EndsWithPattern             []string `soql:"endsWithOperator,fieldName=Host_Name__c"`
 	AssetType                   string   `soql:"equalsOperator,fieldName=Tech_Asset__r.Asset_Type_Asset_Type__c"`
 	Status                      string   `soql:"notEqualsOperator,fieldName=Status__c"`
 	AllowNullLastDiscoveredDate *bool    `soql:"nullOperator,fieldName=Last_Discovered_Date__c"`
